@@ -196,7 +196,8 @@ app.post('/api/posts/:id/vote',needDb,auth,async(req,res,next)=>{try{const id=Nu
 app.use((err,req,res,next)=>{console.error(err.message);if(err instanceof multer.MulterError)return res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({error:err.code==='LIMIT_FILE_SIZE'?'El archivo supera el límite de 40 MB.':'No se pudo procesar el archivo.'});res.status(500).json({error:'Ocurrió un error del servidor. Intentá de nuevo.'})});
 app.listen(PORT,async()=>{console.log('Pril API listening on '+PORT);await initDb();if(!JWT_SECRET)console.error('WARNING: JWT_SECRET missing; set a long random secret in Render env vars.');});
 process.on('SIGTERM',async()=>{if(pool)await pool.end();process.exit(0)});
-+args.length;}\n  if(req.query.communityId){args.push(Number(req.query.communityId));filter+=' AND p.community_id=
++args.length;}
+  if(req.query.communityId){args.push(Number(req.query.communityId));filter+=' AND p.community_id=
   args.push(limit);
   const q=await pool.query(postSelect+filter+' ORDER BY p.created_at DESC LIMIT $'+args.length,args);
   res.json({posts:q.rows.map(serializePost)});
