@@ -115,7 +115,9 @@ const postSelect = `SELECT p.id,p.user_id,p.title,p.body,p.kind,p.link,p.poll,p.
  (SELECT COUNT(*)::int FROM comments c WHERE c.post_id=p.id) AS comment_count,
  EXISTS(SELECT 1 FROM likes ml WHERE ml.post_id=p.id AND ml.user_id=$1) AS liked,
  EXISTS(SELECT 1 FROM follows f WHERE f.followed_id=p.user_id AND f.follower_id=$1) AS followed,
- (SELECT COUNT(*)::int FROM follows fr WHERE fr.followed_id=p.user_id) AS follower_count
+ (SELECT COUNT(*)::int FROM follows fr WHERE fr.followed_id=p.user_id) AS follower_count,
+ (SELECT COALESCE(jsonb_object_agg(v.option,v.votes),'{}'::jsonb) FROM (SELECT option,COUNT(*)::int votes FROM poll_votes WHERE post_id=p.id GROUP BY option) v) AS poll_results,
+ (SELECT option FROM poll_votes WHERE post_id=p.id AND user_id=$1 LIMIT 1) AS my_vote,p.community_id
  FROM posts p JOIN users u ON u.id=p.user_id`;
 function serializePost(p) { return { id:Number(p.id), userId:Number(p.user_id), name:p.name, username:p.username, bio:p.bio||'', title:p.title, body:p.body, copy:p.body, kind:p.kind, type:p.kind, link:p.link, poll:p.poll, mediaType:p.media_type, mediaName:p.media_name, mediaUrl:p.media_type?'/api/posts/'+p.id+'/media':null, createdAt:p.created_at, time:new Date(p.created_at).toLocaleString('es-AR'), likes:Number(p.like_count), comments:Number(p.comment_count), liked:!!p.liked, following:!!p.followed, followers:Number(p.follower_count), letter:(p.name||'P').slice(0,1).toUpperCase(), handle:p.username }; }
 app.get('/api/posts',needDb,async(req,res,next)=>{
