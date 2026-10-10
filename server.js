@@ -125,7 +125,8 @@ app.get('/api/posts',needDb,async(req,res,next)=>{
   const viewer=Number(req.query.viewer)||0, feed=String(req.query.feed||'all'), limit=Math.min(100,Math.max(1,Number(req.query.limit)||50));
   let filter='', args=[viewer];
   if(feed==='following'&&viewer){filter=' AND EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_id=$1 AND ff.followed_id=p.user_id)';}
-  if(req.query.userId){args.push(Number(req.query.userId));filter+=' AND p.user_id=
+  if(req.query.userId){args.push(Number(req.query.userId));filter+=' AND p.user_id=$'+args.length;}
+  if(req.query.communityId){args.push(Number(req.query.communityId));filter+=' AND p.community_id=$'+args.length;}
   args.push(limit);
   const q=await pool.query(postSelect+filter+' ORDER BY p.created_at DESC LIMIT $'+args.length,args);
   res.json({posts:q.rows.map(serializePost)});
