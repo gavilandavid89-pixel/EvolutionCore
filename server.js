@@ -193,6 +193,17 @@ app.post('/api/communities/:id/join',needDb,auth,async(req,res,next)=>{try{const
 app.get('/api/creator/stats',needDb,auth,async(req,res,next)=>{try{const q=await pool.query("SELECT (SELECT COUNT(*)::int FROM posts WHERE user_id=$1) posts,(SELECT COUNT(*)::int FROM follows WHERE followed_id=$1) followers,(SELECT COUNT(*)::int FROM likes l JOIN posts p ON p.id=l.post_id WHERE p.user_id=$1) likes,(SELECT COALESCE(SUM(points),0)::int FROM points_events WHERE user_id=$1) points,(SELECT COUNT(*)::int FROM comments c JOIN posts p ON p.id=c.post_id WHERE p.user_id=$1) comments",[req.userId]);res.json({stats:q.rows[0]})}catch(e){next(e)}});
 app.get('/api/points',needDb,auth,async(req,res,next)=>{try{const q=await pool.query('SELECT points,reason,created_at FROM points_events WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100',[req.userId]),t=await pool.query('SELECT COALESCE(SUM(points),0)::int total FROM points_events WHERE user_id=$1',[req.userId]);res.json({total:t.rows[0].total,events:q.rows.map(e=>({points:e.points,reason:e.reason,createdAt:e.created_at}))})}catch(e){next(e)}});
 app.post('/api/posts/:id/vote',needDb,auth,async(req,res,next)=>{try{const id=Number(req.params.id),option=String(req.body.option||'').trim(),q=await pool.query('SELECT poll,user_id FROM posts WHERE id=$1',[id]);if(!q.rowCount)return res.status(404).json({error:'Publicación no encontrada.'});if(!Array.isArray(q.rows[0].poll)||!q.rows[0].poll.includes(option))return res.status(400).json({error:'Esa opción no pertenece a la encuesta.'});await pool.query('INSERT INTO poll_votes(post_id,user_id,option) VALUES($1,$2,$3) ON CONFLICT(post_id,user_id) DO UPDATE SET option=EXCLUDED.option,created_at=NOW()',[id,req.userId,option]);const r=await pool.query('SELECT option,COUNT(*)::int votes FROM poll_votes WHERE post_id=$1 GROUP BY option',[id]);res.json({myVote:option,results:Object.fromEntries(r.rows.map(x=>[x.option,x.votes]))})}catch(e){next(e)}});
+app.post('/api/me/password',needDb,auth,async(req,res,next)=>{
+ try {
+  const current=String(req.body.currentPassword||''), nextPassword=String(req.body.newPassword||'');
+  if(nextPassword.length<8||nextPassword.length>128)return res.status(400).json({error:'La nueva contraseña debe tener entre 8 y 128 caracteres.'});
+  const q=await pool.query('SELECT password_hash FROM users WHERE id=$1',[req.userId]);
+  if(!q.rowCount||!await bcrypt.compare(current,q.rows[0].password_hash))return res.status(400).json({error:'La contraseña actual no coincide.'});
+  const hash=await bcrypt.hash(nextPassword,12);
+  await pool.query('UPDATE users SET password_hash=$2 WHERE id=$1',[req.userId,hash]);
+  res.json({ok:true});
+ } catch(e){next(e)}
+});
 app.use((err,req,res,next)=>{console.error(err.message);if(err instanceof multer.MulterError)return res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({error:err.code==='LIMIT_FILE_SIZE'?'El archivo supera el límite de 40 MB.':'No se pudo procesar el archivo.'});res.status(500).json({error:'Ocurrió un error del servidor. Intentá de nuevo.'})});
 app.listen(PORT,async()=>{console.log('Pril API listening on '+PORT);await initDb();if(!JWT_SECRET)console.error('WARNING: JWT_SECRET missing; set a long random secret in Render env vars.');});
 process.on('SIGTERM',async()=>{if(pool)await pool.end();process.exit(0)});
