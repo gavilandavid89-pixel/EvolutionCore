@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const API='https://pril-backend-api.onrender.com/api', ORIGIN=API.replace(/\/api$/,'');
-const $=s=>document.querySelector(s), $=s=>Array.from(document.querySelectorAll(s)), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>document.querySelector(s), qsa=s=>Array.from(document.querySelectorAll(s)), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let token=localStorage.getItem('pril-token')||'', me=null, posts=[], page='home', feed='all', searchTerm='', apiStatus='Conectando con Pril…', pendingComments=null, activeConversation=null, activeCommunity=null;
 const authHeaders=()=>token?{Authorization:'Bearer '+token}:{};
 async function api(path,opts={}){let headers={...authHeaders(),...(opts.headers||{})};if(opts.body&&!(opts.body instanceof FormData))headers['Content-Type']='application/json';let r=await fetch(API+path,{...opts,headers});let data={};try{data=await r.json()}catch{}if(!r.ok){let e=new Error(data.error||'No se pudo completar la solicitud.');e.status=r.status;e.code=data.code;throw e}return data}
