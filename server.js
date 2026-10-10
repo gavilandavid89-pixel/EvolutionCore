@@ -140,7 +140,9 @@ app.post('/api/posts',needDb,auth,upload.single('media'),async(req,res,next)=>{
   if(!body&&!title&&!req.file&&!link&&!poll)return res.status(400).json({error:'Agregá texto, un archivo o un enlace.'});
   if(link&&!/^https?:\/\//i.test(link))return res.status(400).json({error:'El enlace debe comenzar con http:// o https://.'});
   if(kind==='video'&&req.file&&!req.file.mimetype.startsWith('video/'))return res.status(400).json({error:'Elegí un archivo de video.'});
-  const q=await pool.query('INSERT INTO posts(user_id,title,body,kind,link,poll,media,media_type,media_name) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id',[req.userId,title,body,kind,link||null,poll?JSON.stringify(poll):null,req.file?req.file.buffer:null,req.file?req.file.mimetype:null,req.file?req.file.originalname.slice(0,255):null]);
+  const communityId=req.body.communityId?Number(req.body.communityId):null;
+  if(communityId){const member=await pool.query('SELECT 1 FROM community_members WHERE community_id=$1 AND user_id=$2',[communityId,req.userId]);if(!member.rowCount)return res.status(403).json({error:'Unite a la comunidad antes de publicar allí.'});}
+  const q=await pool.query('INSERT INTO posts(user_id,title,body,kind,link,poll,media,media_type,media_name,community_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id',[req.userId,title,body,kind,link||null,poll?JSON.stringify(poll):null,req.file?req.file.buffer:null,req.file?req.file.mimetype:null,req.file?req.file.originalname.slice(0,255):null,communityId]);
   const result=await pool.query(postSelect+' WHERE p.id=$2',[req.userId,q.rows[0].id]);res.status(201).json({post:serializePost(result.rows[0])});
  }catch(e){if(e instanceof SyntaxError)return res.status(400).json({error:'La encuesta no tiene un formato válido.'});next(e)}
 });
